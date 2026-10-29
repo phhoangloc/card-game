@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>King Chess - Cờ vua</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <section id="menu" class="menu">
+    <div class="menu-box">
+      <h1>♚ King Chess</h1>
+      <p class="sub">Bàn cờ chỉ có 2 Vua. Mỗi lượt bốc 1 lá (tối đa 5 lá), rồi chọn một việc: đi quân, ra quân từ bài (vào 2 hàng xuất phát) hoặc bỏ lượt. Mỗi bên có 23 điểm, quân bị ăn bị trừ số điểm (số sao) ghi trên lá bài. Mất Vua hoặc hết điểm là thua; hai bên cùng bỏ lượt thì ai còn nhiều điểm hơn thắng.</p>
+
+      <div class="field">
+        <span class="label">Chế độ chơi</span>
+        <div class="options" data-name="mode">
+          <button class="opt" data-value="pvp">👥 2 người</button>
+          <button class="opt active" data-value="ai">🤖 Chơi với máy</button>
+          <button class="opt" data-value="aivai">🍿 Máy đấu máy</button>
+        </div>
+      </div>
+
+      <div class="field" id="field-side">
+        <span class="label">Bạn cầm quân</span>
+        <div class="options" data-name="side">
+          <button class="opt active" data-value="w">♔ Trắng</button>
+          <button class="opt" data-value="b">♚ Đen</button>
+          <button class="opt" data-value="r">🎲 Ngẫu nhiên</button>
+        </div>
+      </div>
+
+      <div class="field" id="field-level">
+        <span class="label">Độ khó</span>
+        <div class="options" data-name="level">
+          <button class="opt" data-value="1">Dễ</button>
+          <button class="opt active" data-value="2">Trung bình</button>
+          <button class="opt" data-value="3">Khó</button>
+        </div>
+      </div>
+
+      <button id="btn-start" class="start">Vào chơi</button>
+    </div>
+  </section>
+
+  <main id="game" class="app hidden">
+    <section class="board-wrap">
+      <div class="status">
+        <span id="status-text">Lượt của Trắng</span>
+        <button id="btn-pass" class="small hidden">Bỏ lượt</button>
+        <button id="btn-again" class="small hidden">Về menu</button>
+      </div>
+      <div id="hand-top" class="hand"><div class="hand-info"></div><div class="cards"></div></div>
+      <div id="board" class="board" aria-label="Bàn cờ"></div>
+      <div id="turn-toast" class="turn-toast">Tới lượt của bạn</div>
+      <div id="hand-bottom" class="hand"><div class="hand-info"></div><div class="cards"></div></div>
+    </section>
+  </main>
+
+  <div id="promo" class="promo hidden">
+    <div class="promo-box">
+      <p>Phong cấp thành:</p>
+      <div id="promo-choices"></div>
+    </div>
+  </div>
+
+  <div id="end-modal" class="end-modal hidden">
+    <div class="end-box">
+      <div id="end-stage" class="end-stage"></div>
+      <div id="end-info" class="end-info">
+        <h2 id="end-title"></h2>
+        <p id="end-detail"></p>
+        <div class="end-btns">
+          <button id="end-again">Chơi lại</button>
+          <button id="end-no" class="ghost">Không</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
