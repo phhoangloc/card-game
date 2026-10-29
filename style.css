@@ -348,3 +348,258 @@ button.small { flex: none; padding: 5px 12px; }
 .card .glyph { font-size: 28px; }
 .card .stars { color: #e0a100; font-size: 11px; line-height: 1; letter-spacing: -1px; margin-top: 2px; }
 .hand-info .score { color: #ffd166; }
+
+/* =====================================================
+   Giao diện 2.5D: bàn cờ nghiêng, quân đứng, bài nổi
+   ===================================================== */
+:root {
+  --tilt: 46deg;
+  --gold: #ffd166;
+}
+
+body {
+  background:
+    radial-gradient(ellipse at 50% 0%, rgba(120, 140, 255, 0.18), transparent 55%),
+    radial-gradient(ellipse at 50% 100%, rgba(255, 170, 70, 0.10), transparent 50%),
+    linear-gradient(180deg, #232634 0%, #14161e 100%);
+  background-attachment: fixed;
+}
+
+/* --- Nút bấm nổi --- */
+button {
+  background: linear-gradient(180deg, #9bd45e, #6aa233);
+  box-shadow: 0 4px 0 #3f6a1c, 0 8px 14px rgba(0, 0, 0, 0.35);
+  transition: transform 0.08s, box-shadow 0.08s, filter 0.15s;
+}
+button:hover { filter: brightness(1.08); }
+button:active { transform: translateY(3px); box-shadow: 0 1px 0 #3f6a1c, 0 3px 6px rgba(0, 0, 0, 0.35); }
+button.opt, .end-btns button.ghost {
+  background: linear-gradient(180deg, #34322e, #26241f);
+  box-shadow: 0 4px 0 #14130f, 0 8px 14px rgba(0, 0, 0, 0.35);
+}
+button.opt.active {
+  background: linear-gradient(180deg, #4f7a2c, #355a1b);
+  border-color: #9bd45e;
+}
+
+/* --- Menu --- */
+.menu-box {
+  background: linear-gradient(160deg, rgba(60, 64, 82, 0.92), rgba(32, 34, 46, 0.95));
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  border-radius: 20px;
+  padding: 32px 28px;
+}
+.menu-box h1 {
+  font-size: 38px;
+  letter-spacing: 1px;
+  background: linear-gradient(180deg, #fff3c4, #e8a935);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.5));
+}
+
+/* --- Thanh trạng thái --- */
+.status {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.10), rgba(255, 255, 255, 0.04));
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
+  padding: 10px 18px;
+}
+.status.over { background: linear-gradient(180deg, #9bd45e, #6aa233); }
+
+/* --- Bàn cờ nghiêng với độ dày --- */
+.board-wrap { perspective: 1400px; perspective-origin: 50% 25%; }
+
+.board-3d {
+  position: relative;
+  width: var(--size);
+  height: var(--size);
+  margin: calc(var(--size) * -0.12) 0 calc(var(--size) * 0.04);
+  transform-style: preserve-3d;
+  transform: rotateX(var(--tilt));
+}
+.board-3d .layer {
+  position: absolute;
+  inset: -12px;
+  border-radius: 14px;
+  background: #3a2411;
+  pointer-events: none;
+}
+.board-3d .l1 { transform: translateZ(-5px); background: #4a2e16; }
+.board-3d .l2 { transform: translateZ(-10px); background: #3f2713; }
+.board-3d .l3 { transform: translateZ(-15px); background: #35200f; }
+.board-3d .l4 { transform: translateZ(-20px); background: #2c1a0c; }
+.board-3d .l5 { transform: translateZ(-25px); background: #231409; }
+.board-3d .shadow {
+  inset: -4px;
+  background: rgba(0, 0, 0, 0.65);
+  filter: blur(22px);
+  transform: translateZ(-70px) scale(1.05);
+  border-radius: 30px;
+}
+
+.board {
+  position: relative;
+  transform-style: preserve-3d;
+  border: none;
+  border-radius: 4px;
+  /* khung gỗ quanh bàn cờ */
+  box-shadow: 0 0 0 12px #6b4423, 0 0 0 13px #2a190b;
+  background: #6b4423;
+}
+
+.sq { transform-style: preserve-3d; }
+.sq.light { background: linear-gradient(135deg, #f6e3bd, #e0c08a); }
+.sq.dark { background: linear-gradient(135deg, #bd8650, #96622f); }
+
+/* bóng của quân dưới chân (nằm phẳng trên mặt bàn) */
+.sq:has(.piece)::before {
+  content: "";
+  position: absolute;
+  width: 64%;
+  height: 34%;
+  left: 18%;
+  bottom: 10%;
+  border-radius: 50%;
+  background: radial-gradient(ellipse, rgba(0, 0, 0, 0.6), transparent 70%);
+}
+
+/* --- Quân cờ đứng trên mặt bàn --- */
+.piece {
+  display: block;
+  line-height: 1;
+  pointer-events: auto;
+  transform-origin: 50% 88%;
+  transform: rotateX(calc(var(--tilt) * -1)) translateY(-6%) scale(1.18);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent !important;
+  text-shadow: none !important;
+  filter: drop-shadow(0 5px 3px rgba(0, 0, 0, 0.55));
+}
+.piece.w {
+  background-image: linear-gradient(180deg, #ffffff 0%, #f1ead8 45%, #b8ad92 100%);
+  -webkit-text-stroke: 1.2px rgba(40, 24, 8, 0.9);
+}
+.piece.b {
+  background-image: linear-gradient(180deg, #6f7186 0%, #2b2c38 45%, #0a0a10 100%);
+  -webkit-text-stroke: 1.2px rgba(255, 255, 255, 0.5);
+}
+.piece.pop { animation: pop3d 0.42s ease-out; }
+@keyframes pop3d {
+  0% { transform: rotateX(calc(var(--tilt) * -1)) translateY(-90%) scale(0.3); opacity: 0.3; }
+  55% { transform: rotateX(calc(var(--tilt) * -1)) translateY(2%) scale(1.5); opacity: 1; }
+  100% { transform: rotateX(calc(var(--tilt) * -1)) translateY(-6%) scale(1.18); opacity: 1; }
+}
+
+/* nhãn Chiếu / Hộ giá nổi phía trên quân */
+.badge {
+  transform-origin: 50% 100%;
+  transform: translateX(-50%) translateZ(54px) rotateX(calc(var(--tilt) * -1));
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.5);
+}
+
+/* --- Khay bài và lá bài --- */
+.hand {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.02));
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  padding: 8px 12px 10px;
+  box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+.cards { perspective: 700px; }
+.card {
+  background: linear-gradient(160deg, #fffdf6 0%, #efe6d0 100%);
+  border: 1px solid #bba972;
+  box-shadow: 0 8px 12px rgba(0, 0, 0, 0.5), inset 0 0 0 2px rgba(255, 255, 255, 0.7);
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+.card.playable:hover {
+  transform: translateY(-10px) rotateX(14deg) rotateZ(-2deg);
+  box-shadow: 0 16px 20px rgba(0, 0, 0, 0.55), inset 0 0 0 2px rgba(255, 255, 255, 0.7);
+}
+.card.picked {
+  transform: translateY(-14px) rotateX(10deg);
+  outline: none;
+  box-shadow: 0 0 0 3px var(--gold), 0 18px 24px rgba(0, 0, 0, 0.6);
+}
+.card.back {
+  background:
+    repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.08) 0 4px, transparent 4px 8px),
+    linear-gradient(160deg, #8c3a3a, #5a1f1f);
+  border: 3px solid #f4ead2;
+}
+.card.deck { box-shadow: 3px 3px 0 #4a1a1a, 6px 6px 0 #331212, 9px 12px 14px rgba(0, 0, 0, 0.5); }
+.card.deck.empty { box-shadow: none; }
+.card.fly { box-shadow: 0 18px 30px rgba(0, 0, 0, 0.6); }
+
+.turn-toast { background: linear-gradient(180deg, #a8dd6b, #6aa233); box-shadow: 0 8px 0 #3f6a1c, 0 16px 30px rgba(0, 0, 0, 0.5); }
+
+/* ---------- Hiệu ứng bị chiếu ---------- */
+.piece.charging {
+  animation: charge 0.38s ease-in-out;
+  filter: drop-shadow(0 0 6px #ff3b3b) drop-shadow(0 0 16px #ff8a3b) brightness(1.35);
+}
+@keyframes charge {
+  0% { transform: rotateX(calc(var(--tilt) * -1)) translateY(-6%) scale(1.18); }
+  50% { transform: rotateX(calc(var(--tilt) * -1)) translateY(-14%) scale(1.38); }
+  100% { transform: rotateX(calc(var(--tilt) * -1)) translateY(-6%) scale(1.18); }
+}
+.fx-bolt {
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 120px;
+  height: 9px;
+  margin: -4px 0 0 -120px;
+  transform-origin: 100% 50%;
+  border-radius: 5px;
+  background: linear-gradient(90deg, transparent, rgba(255, 90, 40, 0.9) 65%, #fff);
+  box-shadow: 0 0 14px 4px rgba(255, 120, 60, 0.85);
+  pointer-events: none;
+  z-index: 25;
+}
+.fx-shield {
+  position: fixed;
+  width: 86px;
+  height: 86px;
+  margin: -43px 0 0 -43px;
+  border-radius: 50%;
+  border: 5px solid #ffd166;
+  background: radial-gradient(circle, rgba(130, 190, 255, 0.55), rgba(80, 130, 255, 0.15) 65%, transparent 70%);
+  box-shadow: 0 0 22px 6px rgba(255, 209, 102, 0.8), inset 0 0 18px rgba(255, 255, 255, 0.8);
+  pointer-events: none;
+  z-index: 25;
+  opacity: 0;
+}
+.fx-spark {
+  position: fixed;
+  width: 7px;
+  height: 7px;
+  margin: -3px;
+  border-radius: 2px;
+  background: #ffe28a;
+  box-shadow: 0 0 6px #ffb703;
+  pointer-events: none;
+  z-index: 26;
+  animation: burst 0.6s ease-out forwards;
+}
+.fx-spark:nth-child(3n) { background: #fff; }
+.fx-text {
+  position: fixed;
+  transform: translate(-50%, 0);
+  padding: 3px 12px;
+  border-radius: 999px;
+  background: #ffd166;
+  color: #3a2300;
+  font-weight: 800;
+  font-size: 14px;
+  white-space: nowrap;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.45);
+  pointer-events: none;
+  z-index: 27;
+  opacity: 0;
+}

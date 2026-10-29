@@ -10,7 +10,7 @@
   <section id="menu" class="menu">
     <div class="menu-box">
       <h1>♚ King Chess</h1>
-      <p class="sub">Bàn cờ chỉ có 2 Vua. Mỗi lượt bốc 1 lá (tối đa 5 lá), rồi chọn một việc: đi quân, ra quân từ bài (vào 2 hàng xuất phát) hoặc bỏ lượt. Mỗi bên có 23 điểm, quân bị ăn bị trừ số điểm (số sao) ghi trên lá bài. Mất Vua hoặc hết điểm là thua; hai bên cùng bỏ lượt thì ai còn nhiều điểm hơn thắng.</p>
+      <p class="sub">Bàn cờ chỉ có 2 Vua. Mỗi lượt bốc 1 lá (tối đa 5 lá), rồi chọn một việc: đi quân, ra quân từ bài (vào 2 hàng xuất phát) hoặc bỏ lượt. Mỗi bên có 23 điểm, quân bị ăn bị trừ số điểm (số sao) ghi trên lá bài. Đi theo luật cờ vua: không được để Vua mình bị chiếu, bị chiếu hết hoặc hết điểm là thua; hai bên cùng bỏ lượt thì ai còn nhiều điểm hơn thắng.</p>
 
       <div class="field">
         <span class="label">Chế độ chơi</span>
@@ -51,7 +51,12 @@
         <button id="btn-again" class="small hidden">Về menu</button>
       </div>
       <div id="hand-top" class="hand"><div class="hand-info"></div><div class="cards"></div></div>
-      <div id="board" class="board" aria-label="Bàn cờ"></div>
+      <div class="board-3d">
+        <div class="layer shadow"></div>
+        <div class="layer l5"></div><div class="layer l4"></div><div class="layer l3"></div>
+        <div class="layer l2"></div><div class="layer l1"></div>
+        <div id="board" class="board" aria-label="Bàn cờ"></div>
+      </div>
       <div id="turn-toast" class="turn-toast">Tới lượt của bạn</div>
       <div id="hand-bottom" class="hand"><div class="hand-info"></div><div class="cards"></div></div>
     </section>

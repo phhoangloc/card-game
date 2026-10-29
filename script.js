@@ -138,10 +138,23 @@ function applyMove(s, m) {
   return { b, turn: other(s.turn), ep: m.dbl ? (m.from + m.to) / 2 : -1 };
 }
 
-// Vua đi vào ô đang bị quân đối phương tấn công (kể cả ô sát Vua đối phương) = đầu hàng, thua ngay
-function kingSurrenders(s, m) {
-  if (m.piece[1] !== "K") return false;
-  return isAttacked(applyMove(s, m), m.to, other(s.turn));
+// Luật cờ vua: không được đi (hay ra quân) để Vua của mình bị chiếu
+const inCheck = (s, color) => {
+  const k = s.b.indexOf(color + "K");
+  return k >= 0 && isAttacked(s, k, other(color));
+};
+
+function legalMoves(s) {
+  return pseudoMoves(s).filter((m) => !inCheck(applyMove(s, m), s.turn));
+}
+
+// Ra quân hợp lệ: sau khi đặt, Vua mình không bị chiếu (đặt quân chắn đường chiếu cũng được)
+const dropIsLegal = (s, color, type, sq) => !inCheck(placePiece(s, color, type, sq), color);
+
+// Bên đang bị chiếu còn cách giải không (đi quân hợp lệ hoặc ra quân chắn)?
+function hasEscape(s, color, hand) {
+  if (legalMoves({ ...s, turn: color }).length) return true;
+  return hand.some((type) => deploySquares(s, color).some((sq) => dropIsLegal(s, color, type, sq)));
 }
 
 // Ô được phép ra quân: 2 hàng xuất phát của mình (ô phải còn trống)
@@ -204,8 +217,11 @@ function negamax(s, depth, alpha, beta, ply) {
   if ((++searchNodes & 1023) === 0 && performance.now() > searchDeadline) throw TIMEOUT;
   if (!s.b.includes(s.turn + "K")) return -100000 + ply;
   if (depth === 0) return (s.turn === "w" ? 1 : -1) * evaluate(s);
-  const moves = pseudoMoves(s).filter((m) => !kingSurrenders(s, m));
-  if (!moves.length) return (s.turn === "w" ? 1 : -1) * evaluate(s);
+  const moves = legalMoves(s);
+  if (!moves.length) {
+    // hết nước: bị chiếu = chiếu hết (thua), không thì tính như thế cờ thường
+    return inCheck(s, s.turn) ? -100000 + ply : (s.turn === "w" ? 1 : -1) * evaluate(s);
+  }
   let best = -Infinity;
   for (const m of orderMoves(moves)) {
     const v = -negamax(applyMove(s, m), depth - 1, -beta, -alpha, ply + 1);
@@ -218,7 +234,7 @@ function negamax(s, depth, alpha, beta, ply) {
 
 // Đào sâu dần tới maxDepth; hết thời gian thì dùng kết quả của độ sâu trước đó
 function chooseMove(s, maxDepth, timeMs = 900) {
-  let moves = orderMoves(pseudoMoves(s).filter((m) => (!m.promo || m.promo === "Q") && !kingSurrenders(s, m)));
+  let moves = orderMoves(legalMoves(s).filter((m) => !m.promo || m.promo === "Q"));
   if (!moves.length) return null;
   let best = [moves[0]];
   searchDeadline = performance.now() + timeMs;
@@ -252,6 +268,7 @@ function chooseDeploy(s, color, hand) {
   let best = null, bestScore = 0;
   for (const type of new Set(hand)) {
     for (const sq of deploySquares(s, color)) {
+      if (!dropIsLegal(s, color, type, sq)) continue;
       const attacked = isAttacked(s, sq, them);
       const defended = isAttacked(s, sq, color);
       const loss = attacked ? (defended ? VALUE[type] * 0.3 : VALUE[type]) : 0;
@@ -345,6 +362,35 @@ async function beginTurn() {
   if (lastMove) await sleep(450);
   if (id !== runId) return;
 
+  // Chiếu hết: bị chiếu mà không còn cách giải (tính cả lá bài sắp bốc)
+  if (inCheck(s, color)) {
+    const topCard = hands[color].length < MAX_HAND && decks[color].length ? [decks[color][decks[color].length - 1]] : [];
+    if (!hasEscape(s, color, hands[color].concat(topCard))) {
+      const win = other(color);
+      gameOver = true;
+      busy = false;
+      resultText = `Chiếu hết! Vua ${colorName(color)} không còn đường thoát — ${colorName(win)} thắng!`;
+      clearPicks();
+      render();
+      showEnding("capture", win);
+      return;
+    }
+  }
+
+  // Bị chiếu: quân tấn công lao vào Vua nhưng Vua đỡ được
+  const kSq = s.b.indexOf(color + "K");
+  if (kSq >= 0 && isAttacked(s, kSq, other(color))) {
+    const hitters = pseudoMoves({ ...s, turn: other(color) }).filter((m) => m.to === kSq).map((m) => m.from);
+    busyText = `${colorName(other(color))} chiếu Vua ${colorName(color)}!`;
+    render();
+    for (const from of [...new Set(hitters)].slice(0, 2)) {
+      await animateCheck(from, kSq);
+      if (id !== runId) return;
+    }
+    await sleep(250);
+    if (id !== runId) return;
+  }
+
   drew = draw(color);
   if (drew) {
     busyText = `${colorName(color)} bốc 1 lá bài`;
@@ -357,6 +403,82 @@ async function beginTurn() {
   render();
   if (isAiTurn()) aiTurn();
   else showTurnToast();
+}
+
+// Quân chiếu tích lực, bắn một đòn vào Vua; Vua giơ khiên đỡ, tia lửa bắn tung tóe
+async function animateCheck(from, kingSq) {
+  if (typeof Element.prototype.animate !== "function") return;
+  const pieceAt = (sq) => boardEl.querySelector(`[data-i="${sq}"] .piece`);
+  const atk = pieceAt(from), king = pieceAt(kingSq);
+  if (!atk || !king) return;
+  const center = (el) => {
+    const r = el.getBoundingClientRect();
+    return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+  };
+  const a = center(atk), k = center(king);
+  const ang = Math.atan2(k.y - a.y, k.x - a.x);
+  const spawn = (cls, x, y) => {
+    const el = document.createElement("div");
+    el.className = cls;
+    el.style.left = x + "px";
+    el.style.top = y + "px";
+    document.body.appendChild(el);
+    return el;
+  };
+
+  // 1. Quân tấn công phát sáng, tích lực
+  atk.classList.add("charging");
+  await sleep(380);
+
+  // 2. Tia đòn đánh lao thẳng vào Vua
+  const bolt = spawn("fx-bolt", 0, 0);
+  await bolt.animate(
+    [
+      { transform: `translate(${a.x}px, ${a.y}px) rotate(${ang}rad)` },
+      { transform: `translate(${k.x}px, ${k.y}px) rotate(${ang}rad)` },
+    ],
+    { duration: 320, easing: "ease-in", fill: "forwards" }
+  ).finished;
+  bolt.remove();
+  atk.classList.remove("charging");
+
+  // 3. Vua đỡ đòn: khiên lóe lên, tia lửa văng ra, Vua lùi nhẹ
+  const shield = spawn("fx-shield", k.x, k.y);
+  shield.animate(
+    [
+      { opacity: 0, transform: "scale(0.3)" },
+      { opacity: 1, transform: "scale(1)", offset: 0.35 },
+      { opacity: 0, transform: "scale(1.4)" },
+    ],
+    { duration: 600, easing: "ease-out", fill: "forwards" }
+  );
+  const sparks = [];
+  for (let n = 0; n < 16; n++) {
+    const sp = spawn("fx-spark", k.x, k.y);
+    const dir = ang + Math.PI + (Math.random() - 0.5) * 2.4; // văng ngược về phía đòn đánh
+    const dist = 40 + Math.random() * 60;
+    sp.style.setProperty("--dx", Math.cos(dir) * dist + "px");
+    sp.style.setProperty("--dy", Math.sin(dir) * dist + "px");
+    sparks.push(sp);
+  }
+  const label = spawn("fx-text", k.x, k.y - 46);
+  label.textContent = "Đỡ được!";
+  label.animate(
+    [{ opacity: 0, transform: "translate(-50%, 0)" }, { opacity: 1, transform: "translate(-50%, -14px)", offset: 0.3 }, { opacity: 0, transform: "translate(-50%, -30px)" }],
+    { duration: 900, fill: "forwards" }
+  );
+  const push = 7;
+  king.animate(
+    [
+      { transform: "translate(0, 0)" },
+      { transform: `translate(${Math.cos(ang) * push}px, ${Math.sin(ang) * push}px)`, offset: 0.2 },
+      { transform: `translate(${-Math.cos(ang) * 3}px, ${-Math.sin(ang) * 3}px)`, offset: 0.6 },
+      { transform: "translate(0, 0)" },
+    ],
+    { duration: 420, composite: "add" }
+  );
+  await sleep(650);
+  [shield, label, ...sparks].forEach((el) => el.remove());
 }
 
 const handElOf = (color) =>
@@ -436,21 +558,6 @@ function doMove(m) {
   // Quân bị ăn: bên sở hữu bị trừ số điểm tương ứng
   if (m.cap) quietTurns = 0;
   if (m.cap && m.cap[1] !== "K") scores[m.cap[0]] -= POINTS[m.cap[1]];
-  if (kingSurrenders(s, m)) {
-    const loser = s.turn;
-    s = applyMove(s, m);
-    gameOver = true;
-    const foe = other(loser);
-    const k = s.b.indexOf(foe + "K");
-    const nearKing = k >= 0 && Math.max(Math.abs((m.to >> 3) - (k >> 3)), Math.abs((m.to & 7) - (k & 7))) <= 1;
-    resultText = nearKing
-      ? `Vua ${colorName(loser)} tiến vào khu vực Vua ${colorName(foe)} — ${colorName(loser)} đầu hàng, ${colorName(foe)} thắng!`
-      : `Vua ${colorName(loser)} đi vào ô bị tấn công — ${colorName(loser)} đầu hàng, ${colorName(foe)} thắng!`;
-    clearPicks();
-    render();
-    showEnding("surrender", foe);
-    return;
-  }
   s = applyMove(s, m);
   afterMove();
 }
@@ -589,7 +696,7 @@ function aiTurn() {
     // Mức Dễ thỉnh thoảng đi bừa; còn lại tìm nước tốt nhất (Dễ 2, Vừa 3, Khó 4 nước)
     let m;
     if (level === 1 && Math.random() < 0.25) {
-      const all = pseudoMoves(s).filter((x) => (!x.promo || x.promo === "Q") && !kingSurrenders(s, x));
+      const all = legalMoves(s).filter((x) => !x.promo || x.promo === "Q");
       m = all.length ? all[Math.floor(Math.random() * all.length)] : null;
     } else {
       m = chooseMove(s, level + 1);
@@ -606,7 +713,8 @@ function aiTurn() {
     if (!attack) {
       const force = s.b.filter((p) => p && p[0] === me && "QRBN".includes(p[1])).length;
       const build = force < 3 || (hands[me].length >= MAX_HAND && Math.random() < 0.5);
-      if ((build || !m) && (level > 1 || Math.random() < 0.7)) d = chooseDeploy(s, me, hands[me]);
+      const forced = !m && inCheck(s, me); // chỉ còn cách ra quân để chắn đường chiếu
+      if ((build || !m) && (level > 1 || forced || Math.random() < 0.7)) d = chooseDeploy(s, me, hands[me]);
     }
     thinking = false;
     if (d) {
@@ -678,7 +786,7 @@ function render() {
   renderHand(document.getElementById("hand-top"), other(bottom));
 
   statusTextEl.parentElement.classList.toggle("over", gameOver);
-  const canPass = !gameOver && !thinking && !busy && !isAiTurn();
+  const canPass = !gameOver && !thinking && !busy && !isAiTurn() && !inCheck(s, s.turn);
   passBtn.classList.toggle("hidden", !canPass);
   againBtn.classList.toggle("hidden", !gameOver && !spectating());
 
@@ -690,7 +798,8 @@ function render() {
     statusTextEl.textContent = spectating() ? `Máy ${colorName(s.turn)} đang suy nghĩ...` : "Máy đang suy nghĩ...";
   } else {
     statusTextEl.textContent = `Lượt của ${colorName(s.turn)}` +
-      (drew ? " · đã bốc 1 lá" : " · không bốc được lá");
+      (drew ? " · đã bốc 1 lá" : " · không bốc được lá") +
+      (inCheck(s, s.turn) ? " · Vua đang bị chiếu, phải giải chiếu!" : "");
   }
 }
 
@@ -799,7 +908,8 @@ function onCard(idx) {
   } else {
     clearPicks();
     cardPick = idx;
-    dropSquares = deploySquares(s, s.turn);
+    const type = hands[s.turn][idx];
+    dropSquares = deploySquares(s, s.turn).filter((sq) => dropIsLegal(s, s.turn, type, sq));
   }
   render();
 }
@@ -822,7 +932,7 @@ function onSquare(i) {
   clearPicks();
   if (p && p[0] === s.turn) {
     sel = i;
-    targets = pseudoMoves(s).filter((m) => m.from === i);
+    targets = legalMoves(s).filter((m) => m.from === i);
   }
   render();
 }
